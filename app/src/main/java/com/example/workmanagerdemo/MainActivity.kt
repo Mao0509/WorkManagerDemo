@@ -49,6 +49,9 @@ class MainActivity : AppCompatActivity() {
                                 enqueueDownloadWork()
                             }
                         }
+                        WorkInfo.State.FAILED -> {
+                            mBinding.tips.text = "下载失败"
+                        }
                     }
                 }
             }

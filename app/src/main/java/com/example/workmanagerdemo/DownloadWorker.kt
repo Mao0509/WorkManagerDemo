@@ -6,13 +6,14 @@ import android.content.Intent
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.work.*
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 
 class DownloadWorker : CoroutineWorker {
 
     companion object {
 
-        const val TAG = "DownloadCoroutineWorker"
+        const val TAG = "DownloadWorker"
         const val INPUT_KEY = "INPUT_KEY"
         const val OUTPUT_KEY = "OUTPUT_KEY"
         private const val START_DOWNLOAD_NOTIFICATION_ID = 435345123
@@ -20,12 +21,27 @@ class DownloadWorker : CoroutineWorker {
 
     }
 
+    private val mFouregroundInfo = ForegroundInfo(
+        START_DOWNLOAD_NOTIFICATION_ID,
+        createNotification(applicationContext) {
+            setContentTitle("Start Download")
+            setSmallIcon(R.drawable.ic_launcher_foreground)
+            setContentText("Start Download ${inputData.getString(INPUT_KEY)}")
+            priority = NotificationCompat.PRIORITY_DEFAULT
+            val cancel = WorkManager.getInstance(applicationContext).createCancelPendingIntent(id)
+            //设置cancelWork按钮
+            addAction(R.drawable.icon_cancel, "Cancel", cancel)
+            mNotificationBuilder = this
+        }
+    )
     private lateinit var mNotificationBuilder: NotificationCompat.Builder
 
     constructor(appContext: Context, params: WorkerParameters) : super(appContext, params)
 
     //Worker执行任务
     override suspend fun doWork(): Result {
+        Log.d(TAG, "doWork")
+        setForeground(mFouregroundInfo) // Android 12版本起需要手动调用此接口
         val data = fakeDownload()
         showSuccessNotification()
         val outData = Data.Builder().putString(OUTPUT_KEY, data).build()
@@ -34,20 +50,8 @@ class DownloadWorker : CoroutineWorker {
 
     //创建ForegroundInfo Worker将会作为前台服务运行
     override suspend fun getForegroundInfo(): ForegroundInfo {
-        val context = applicationContext
-        return ForegroundInfo(
-            START_DOWNLOAD_NOTIFICATION_ID,
-            createNotification(context) {
-                setContentTitle("Start Download")
-                setSmallIcon(R.drawable.ic_launcher_foreground)
-                setContentText("Start Download ${inputData.getString(INPUT_KEY)}")
-                priority = NotificationCompat.PRIORITY_DEFAULT
-                val cancel = WorkManager.getInstance(context).createCancelPendingIntent(id)
-                //设置cancelWork按钮
-                addAction(R.drawable.icon_cancel, "Cancel", cancel)
-                mNotificationBuilder = this
-            }
-        )
+        Log.d(TAG, "getForegroundInfo")
+        return mFouregroundInfo
     }
 
     private suspend fun fakeDownload(): String {
